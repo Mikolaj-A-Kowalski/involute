@@ -1,0 +1,17 @@
+[project]
+name = "involute"
+description = "Involute distance calculation package"
+version = "0.1.0"
+authors = [
+    { name = "Mikolaj Adam Kowalski" }
+]
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "scipy"
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest"
+]
