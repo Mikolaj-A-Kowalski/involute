@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import newton
@@ -62,6 +64,8 @@ class Involute:
         self.rb = rb
         self.a0 = a0
 
+    def __repr__(self):
+        return f"Involute({self.rb}, {self.a0})"
 
     def xy(self, t):
         """Get X Y coordinates of the curve given a parameter t
@@ -109,6 +113,11 @@ class Involute:
             Y coordinate of the point
           theta : float
             Direction with respect to the X axis
+
+        Returns
+        -------
+          dist : float
+            Distance to the involute curve
         """
         # Transform the point to the position along the base line
         rl, theta_l, start, arrow = base_line(x, y, theta)
@@ -125,45 +134,47 @@ class Involute:
         p_max = self._phase(-self.rb, rl, theta_l)
         # Calculate the RHS of the equation (next multiple of 2 in the direction)
 
-        if np.floor(p_max/2.0) == np.floor(p/2.0) and dir * (-self.rb - d0) >= 0:
+        if np.floor(p_max/2.0) == np.floor(p/2.0): # and dir * (-self.rb - d0) >= 0:
             # Reflect around the maximum
-            d0 = d0 + 2.0 * (-self.rb - d0)
+            # Taylor expansion to 2nd order can often fail
+            # # We need to make sure that the ray will move away from the maximum
+            # d0 = d0 + 2.0 * (-rb - d0)
+            # Use the quadratic guess
+            p_loc = p_max - 2.0 * np.floor(p_max/2.0)
+            d0 = -self.rb + dir * np.sqrt(2.0 * p_loc * self.rb * rl* np.pi)
 
         if forward != (d0 > -self.rb):
             rhs = 2.0 * np.ceil(p / 2.0)
         else:
             rhs = 2.0 * np.floor(p / 2.0)
 
-        if rl < self.rb and dir * (-self.rb - start) >= 0 and (d0 + self.rb) >= 0:
+        # Last check may not be necessary since this particles have already been
+        # moved to RHS of the maximum
+        if rl < self.rb and (d0 + self.rb) >= 0:# and dir * (-self.rb - start) >= 0:
             val = theta_l - self.a0 - rhs*np.pi
             trig = np.arccos(rl/self.rb)
-
+            # print(f"val: {val}, trig: {trig} {d0}")
             if trig >= val or -trig <= -val:
                 dist = np.tan(theta_l - self.a0) * rl
                 dist = dist - start if forward else start - dist
                 if dist < 0:
-                    print(f"x={x} y={y} t={theta}")
+                    print(f"CG Distance is negative: {self} {x} {y} {theta}")
                 return dist
 
         # Check if the point is in the complex gap
         # If it is push it to the edge
-        if d0 >= 0 and d0**2 < self.rb**2 - rl**2:
+        if d0 >= -self.rb and d0**2 < self.rb**2 - rl**2:
             d0 = np.sqrt(self.rb**2 - rl**2)
 
         # Calculate the distance
         def f(t):
             return self._phase(t, rl, theta_l) - rhs
 
-        try:
-          dist = newton(f, d0)
-        except:
-          print(f"Newton failed at {x} {y} {theta}, guess={d0}")
-          return 0.0
-
+        dist = newton(f, d0)
         dist = dist - start if forward else start - dist
 
         if dist < 0:
-            print(f"x={x} y={y} t={theta}")
+            print(f"Distance is negative: {self} {x} {y} {theta}")
         return dist
 
 
@@ -194,7 +205,7 @@ def fov_plot(inv, x0, y0):
     """
     t = np.linspace(0, 6*np.pi, 100000)
 
-    _, ax = plt.subplots()
+    fig, ax = plt.subplots()
 
     # Plot the involute
     ax.plot(*inv.xy(t), label="Involute")
@@ -220,7 +231,7 @@ def phase_plot(inv, x0, y0, theta):
     ### Plot the involute in the normal space
     t = np.linspace(0, 5*np.pi, 1000)
 
-    _, ax = plt.subplots(1,2, figsize=(10,5))
+    fig, ax = plt.subplots(1,2, figsize=(10,5))
 
     ax[0].plot(*inv.xy(t), label="involute")
     ax[0].add_artist(plt.Circle((0, 0), inv.rb, fill=False))
@@ -231,6 +242,7 @@ def phase_plot(inv, x0, y0, theta):
 
     try:
         d = inv.distance(x0, y0, theta)
+        print(f"Distance: {d}")
         ax[0].arrow(x0, y0, np.cos(theta)*d, np.sin(theta)*d, width=0.01, color='m', head_length=0.1, head_width=0.1, length_includes_head=True)
     except:
       pass
@@ -254,8 +266,21 @@ if __name__ == "__main__":
     #inv = Involute(1, 0.0)
     #plot_involute(inv, 6*np.pi)
 
-    inv = Involute(1, 0.0)
-    fov_plot(inv, 1.5, 2.0)
+    # for i in range(1000):
+    #   rb = random.uniform(1.0, 2.0)
+    #   a0 = random.uniform(-np.pi, np.pi)
+    #   inv = Involute(rb, a0)
 
-    # inv = Involute(1, 0.0)
-    # phase_plot(inv, 1.5, 2.0, 0.0)
+    #   x0 = random.uniform(-10.0, 10.0)
+    #   y0 = random.uniform(-10.0, 10.0)
+    #   if x0**2 + y0**2 < rb**2:
+    #     continue
+    #   try:
+    #     fov_plot(inv, x0, y0)
+    #   except RuntimeError as e:
+    #     print(f"{e}")
+    #   print(f"{i}")
+
+    # inv = Involute(1.0, -0.5*np.pi)
+    # phase_plot(inv, -0.37, -0.999, 0.5*np.pi)
+    # # fov_plot(inv, -0.37, -0.999)
