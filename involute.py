@@ -143,7 +143,7 @@ class Involute:
             p_loc = p_max - 2.0 * np.floor(p_max/2.0)
             d0 = -self.rb + dir * np.sqrt(2.0 * p_loc * self.rb * rl* np.pi)
 
-        if forward != (d0 > -self.rb):
+        if forward != (d0 >= -self.rb):
             rhs = 2.0 * np.ceil(p / 2.0)
         else:
             rhs = 2.0 * np.floor(p / 2.0)
@@ -153,8 +153,7 @@ class Involute:
         if rl < self.rb and (d0 + self.rb) >= 0:# and dir * (-self.rb - start) >= 0:
             val = theta_l - self.a0 - rhs*np.pi
             trig = np.arccos(rl/self.rb)
-            # print(f"val: {val}, trig: {trig} {d0}")
-            if trig >= val or -trig <= -val:
+            if trig >= val and trig >= -val:
                 dist = np.tan(theta_l - self.a0) * rl
                 dist = dist - start if forward else start - dist
                 if dist < 0:
@@ -163,8 +162,12 @@ class Involute:
 
         # Check if the point is in the complex gap
         # If it is push it to the edge
+        # We need to push it to the right edge which is closer to the root!
         if d0 >= -self.rb and d0**2 < self.rb**2 - rl**2:
+            p_gap = theta_l - self.a0 - rhs*np.pi + np.arccos(rl/self.rb)
             d0 = np.sqrt(self.rb**2 - rl**2)
+            if p_gap < 0:
+                d0 = -d0
 
         # Calculate the distance
         def f(t):
@@ -263,8 +266,8 @@ def phase_plot(inv, x0, y0, theta):
 
 
 if __name__ == "__main__":
-    #inv = Involute(1, 0.0)
-    #plot_involute(inv, 6*np.pi)
+    inv = Involute(1, 0.0)
+    plot_involute(inv, 6*np.pi)
 
     # for i in range(1000):
     #   rb = random.uniform(1.0, 2.0)
